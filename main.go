@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -60,7 +62,6 @@ type LocationAreaResponse struct {
 func main() {
 	cfg := &config{}
 
-	// PokeFans CLI loop
 	for {
 		var input string
 		fmt.Print("Pokedex > ")
@@ -105,5 +106,43 @@ func commandHelp(cfg *config) error {
 }
 
 func commandMap(cfg *config) error {
+	url := "https://pokeapi.co/api/v2/location-area"
+
+	if cfg.Next != "" {
+		url = cfg.Next
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("error fetching location areas: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API request failed with status code: %d", resp.StatusCode)
+	}
+
+	var locationResp LocationAreaResponse
+	err = json.NewDecoder(resp.Body).Decode(&locationResp)
+	if err != nil {
+		return fmt.Errorf("error parsing API response: %v", err)
+	}
+
+	if locationResp.Next != nil {
+		cfg.Next = *locationResp.Next
+	} else {
+		cfg.Next = ""
+	}
+
+	if locationResp.Previous != nil {
+		cfg.Previous = *locationResp.Previous
+	} else {
+		cfg.Previous = ""
+	}
+
+	for _, location := range locationResp.Results {
+		fmt.Println(location.Name)
+	}
+
 	return nil
 }

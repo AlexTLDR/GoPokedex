@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -13,48 +12,69 @@ type cliCommand struct {
 	callback    func() error
 }
 
-var commands = map[string]cliCommand{
-	"exit": {
-		name:        "exit",
-		description: "Exit the Pokedex",
-		callback:    commandExit,
-	},
+type commandFunc func(cfg *config) error
+
+type commandWithDescription struct {
+	exec        commandFunc
+	description string
 }
 
+var commands map[string]commandWithDescription
+
 func init() {
-	commands["help"] = cliCommand{
-		name:        "help",
-		description: "Displays a help message",
-		callback:    commandHelp,
+	commands = map[string]commandWithDescription{
+		"map": {
+			exec:        commandMap,
+			description: "Display the names of 20 location areas in the Pokemon world",
+		},
+		// "mapb": {
+		//     exec:        commandMapBack,
+		//     description: "Go back to the previous list of location areas",
+		// },
+		"help": {
+			exec:        commandHelp,
+			description: "Displays a help message",
+		},
+		"exit": {
+			exec:        commandExit,
+			description: "Exit the Pokedex",
+		},
 	}
+}
+
+type config struct {
+	Next     string
+	Previous string
+}
+
+type LocationAreaResponse struct {
+	Count    int     `json:"count"`
+	Next     *string `json:"next"`
+	Previous *string `json:"previous"`
+	Results  []struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"results"`
 }
 
 func main() {
+	cfg := &config{}
 
-	scanner := bufio.NewScanner(os.Stdin)
-
+	// PokeFans CLI loop
 	for {
+		var input string
 		fmt.Print("Pokedex > ")
-		scanner.Scan()
-		input := scanner.Text()
+		fmt.Scanln(&input)
 
-		cleaned := cleanInput(input)
-		if len(cleaned) == 0 {
-			continue
-		}
-		command := cleaned[0]
-
-		if cmd, ok := commands[command]; ok {
-			err := cmd.callback()
+		if cmd, exists := commands[input]; exists {
+			err := cmd.exec(cfg)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("Error:", err)
 			}
 		} else {
-			fmt.Println("Invalid command")
+			fmt.Println("Unknown command. Type 'help' for a list of commands.")
 		}
-
 	}
-
 }
 
 func cleanInput(text string) []string {
@@ -70,16 +90,20 @@ func cleanInput(text string) []string {
 	return cleaned
 }
 
-func commandExit() error {
+func commandExit(cfg *config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(cfg *config) error {
 	fmt.Printf("Welcome to the Pokedex!\nUsage:\n\n")
-	for _, cmd := range commands {
-		fmt.Printf("%s: %s\n", cmd.name, cmd.description)
+	for name, cmd := range commands {
+		fmt.Printf("%s: %s\n", name, cmd.description)
 	}
+	return nil
+}
+
+func commandMap(cfg *config) error {
 	return nil
 }

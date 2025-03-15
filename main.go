@@ -29,10 +29,10 @@ func init() {
 			exec:        commandMap,
 			description: "Display the names of 20 location areas in the Pokemon world",
 		},
-		// "mapb": {
-		//     exec:        commandMapBack,
-		//     description: "Go back to the previous list of location areas",
-		// },
+		"mapb": {
+			exec:        commandMapBack,
+			description: "Go back to the previous list of location areas",
+		},
 		"help": {
 			exec:        commandHelp,
 			description: "Displays a help message",
@@ -113,6 +113,47 @@ func commandMap(cfg *config) error {
 	}
 
 	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("error fetching location areas: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("API request failed with status code: %d", resp.StatusCode)
+	}
+
+	var locationResp LocationAreaResponse
+	err = json.NewDecoder(resp.Body).Decode(&locationResp)
+	if err != nil {
+		return fmt.Errorf("error parsing API response: %v", err)
+	}
+
+	if locationResp.Next != nil {
+		cfg.Next = *locationResp.Next
+	} else {
+		cfg.Next = ""
+	}
+
+	if locationResp.Previous != nil {
+		cfg.Previous = *locationResp.Previous
+	} else {
+		cfg.Previous = ""
+	}
+
+	for _, location := range locationResp.Results {
+		fmt.Println(location.Name)
+	}
+
+	return nil
+}
+
+func commandMapBack(cfg *config) error {
+	if cfg.Previous == "" {
+		fmt.Println("you're on the first page")
+		return nil
+	}
+
+	resp, err := http.Get(cfg.Previous)
 	if err != nil {
 		return fmt.Errorf("error fetching location areas: %v", err)
 	}

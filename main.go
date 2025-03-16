@@ -1,18 +1,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
-)
 
-type cliCommand struct {
-	name        string
-	description string
-	callback    func() error
-}
+	"github.com/AlexTLDR/GoPokedex/internal/pokeapi"
+)
 
 type commandFunc func(cfg *config) error
 
@@ -22,8 +16,11 @@ type commandWithDescription struct {
 }
 
 var commands map[string]commandWithDescription
+var client pokeapi.Client
 
 func init() {
+	client = pokeapi.New()
+
 	commands = map[string]commandWithDescription{
 		"map": {
 			exec:        commandMap,
@@ -47,16 +44,6 @@ func init() {
 type config struct {
 	Next     string
 	Previous string
-}
-
-type LocationAreaResponse struct {
-	Count    int     `json:"count"`
-	Next     *string `json:"next"`
-	Previous *string `json:"previous"`
-	Results  []struct {
-		Name string `json:"name"`
-		URL  string `json:"url"`
-	} `json:"results"`
 }
 
 func main() {
@@ -106,26 +93,9 @@ func commandHelp(cfg *config) error {
 }
 
 func commandMap(cfg *config) error {
-	url := "https://pokeapi.co/api/v2/location-area"
-
-	if cfg.Next != "" {
-		url = cfg.Next
-	}
-
-	resp, err := http.Get(url)
+	locationResp, err := client.ListLocationAreas(cfg.Next)
 	if err != nil {
-		return fmt.Errorf("error fetching location areas: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API request failed with status code: %d", resp.StatusCode)
-	}
-
-	var locationResp LocationAreaResponse
-	err = json.NewDecoder(resp.Body).Decode(&locationResp)
-	if err != nil {
-		return fmt.Errorf("error parsing API response: %v", err)
+		return err
 	}
 
 	if locationResp.Next != nil {
@@ -153,20 +123,9 @@ func commandMapBack(cfg *config) error {
 		return nil
 	}
 
-	resp, err := http.Get(cfg.Previous)
+	locationResp, err := client.ListLocationAreas(cfg.Previous)
 	if err != nil {
-		return fmt.Errorf("error fetching location areas: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API request failed with status code: %d", resp.StatusCode)
-	}
-
-	var locationResp LocationAreaResponse
-	err = json.NewDecoder(resp.Body).Decode(&locationResp)
-	if err != nil {
-		return fmt.Errorf("error parsing API response: %v", err)
+		return err
 	}
 
 	if locationResp.Next != nil {

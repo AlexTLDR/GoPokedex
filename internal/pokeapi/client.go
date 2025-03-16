@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/AlexTLDR/GoPokedex/internal/pokecache"
 )
 
 // Client is the PokeAPI client
 type Client struct {
 	httpClient http.Client
 	baseURL    string
+	cache      *pokecache.Cache
 }
 
 // New creates a new PokeAPI client
@@ -20,6 +23,7 @@ func New() Client {
 			Timeout: time.Minute,
 		},
 		baseURL: "https://pokeapi.co/api/v2",
+		cache:   pokecache.NewCache(5 * time.Minute),
 	}
 }
 
@@ -39,6 +43,14 @@ func (c *Client) ListLocationAreas(pageURL string) (LocationAreaResponse, error)
 	url := c.baseURL + "/location-area"
 	if pageURL != "" {
 		url = pageURL
+	}
+
+	if cachedData, found := c.cache.Get(url); found {
+		var locationResp LocationAreaResponse
+		err := json.Unmarshal(cachedData, &locationResp)
+		if err == nil {
+			return locationResp, nil
+		}
 	}
 
 	resp, err := c.httpClient.Get(url)

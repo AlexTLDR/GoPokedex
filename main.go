@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -38,24 +39,46 @@ func init() {
 			exec:        commandExit,
 			description: "Exit the Pokedex",
 		},
+		"explore": {
+			exec:        commandExplore,
+			description: "Explore the Pokemon world",
+		},
 	}
 }
 
 type config struct {
 	Next     string
 	Previous string
+	Args     []string
 }
 
 func main() {
 	cfg := &config{}
+	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
-		var input string
 		fmt.Print("Pokedex > ")
-		fmt.Scanln(&input)
 
-		if cmd, exists := commands[input]; exists {
-			err := cmd.exec(cfg)
+		if !scanner.Scan() {
+			break
+		}
+
+		input := strings.TrimSpace(scanner.Text())
+
+		if input == "exit" {
+			break
+		}
+
+		parts := strings.Fields(input)
+		if len(parts) == 0 {
+			continue
+		}
+
+		cmdName := parts[0]
+		args := parts[1:]
+
+		if cmd, exists := commands[cmdName]; exists {
+			err := executeCommand(cmd, cfg, args)
 			if err != nil {
 				fmt.Println("Error:", err)
 			}
@@ -63,6 +86,11 @@ func main() {
 			fmt.Println("Unknown command. Type 'help' for a list of commands.")
 		}
 	}
+}
+
+func executeCommand(cmd commandWithDescription, cfg *config, args []string) error {
+	cfg.Args = args
+	return cmd.exec(cfg)
 }
 
 func cleanInput(text string) []string {
@@ -144,5 +172,25 @@ func commandMapBack(cfg *config) error {
 		fmt.Println(location.Name)
 	}
 
+	return nil
+}
+
+func commandExplore(cfg *config) error {
+	if len(cfg.Args) == 0 {
+		return fmt.Errorf("please provide a location area name or id to explore")
+	}
+
+	locationName := cfg.Args[0]
+	fmt.Printf("Exploring %s...\n", locationName)
+
+	locationArea, err := client.GetLocationArea(locationName)
+	if err != nil {
+		return fmt.Errorf("error exploring location area: %w", err)
+	}
+
+	fmt.Printf("Pokemon in %s:\n", locationArea.Name)
+	for _, pokemon := range locationArea.PokemonEncounters {
+		fmt.Println(pokemon.Pokemon.Name)
+	}
 	return nil
 }

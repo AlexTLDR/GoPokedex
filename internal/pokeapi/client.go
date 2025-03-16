@@ -3,6 +3,7 @@ package pokeapi
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -38,7 +39,53 @@ type LocationAreaResponse struct {
 	} `json:"results"`
 }
 
-// ListLocationAreas fetches location areas from the API
+type LocationArea struct {
+	Name              string `json:"name"`
+	PokemonEncounters []struct {
+		Pokemon struct {
+			Name string `json:"name"`
+		} `json:"pokemon"`
+	} `json:"pokemon_encounters"`
+}
+
+// GetLocationArea fetches details about a specific location area
+func (c *Client) GetLocationArea(name string) (LocationArea, error) {
+	url := c.baseURL + "/location-area/" + name
+
+	if cachedData, found := c.cache.Get(url); found {
+		var locationArea LocationArea
+		err := json.Unmarshal(cachedData, &locationArea)
+		if err == nil {
+			return locationArea, nil
+		}
+	}
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return LocationArea{}, fmt.Errorf("error fetching location area: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return LocationArea{}, fmt.Errorf("API request failed with status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return LocationArea{}, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	var locationArea LocationArea
+	err = json.Unmarshal(body, &locationArea)
+	if err != nil {
+		return LocationArea{}, fmt.Errorf("error parsing API response: %w", err)
+	}
+
+	c.cache.Add(url, body)
+
+	return locationArea, nil
+}
+
 func (c *Client) ListLocationAreas(pageURL string) (LocationAreaResponse, error) {
 	url := c.baseURL + "/location-area"
 	if pageURL != "" {

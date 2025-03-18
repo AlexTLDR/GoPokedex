@@ -56,6 +56,10 @@ func Initialize() {
 			Exec:        CommandInspect,
 			Description: "Inspect a caught Pokemon",
 		},
+		"pokedex": {
+			Exec:        CommandPokedex,
+			Description: "List all the caught Pokemon",
+		},
 	}
 }
 
@@ -211,5 +215,24 @@ func CommandInspect(cfg *Config) error {
 	for _, typeInfo := range pokemon.Types {
 		fmt.Printf("  -%s\n", typeInfo.Type.Name)
 	}
+	return nil
+}
+
+func CommandPokedex(cfg *Config) error {
+	if len(cfg.CaughtPokemon) == 0 {
+		fmt.Println("Your Pokedex is empty. Go catch some Pokemon!")
+		return nil
+	}
+
+	fmt.Println("Your Pokedex:")
+	for key, pokemon := range cfg.CaughtPokemon {
+		fmt.Printf("  - %s", pokemon.Name)
+
+		if key != pokemon.Name {
+			fmt.Printf(" (caught as '%s')", key)
+		}
+		fmt.Println()
+	}
+
 	return nil
 }

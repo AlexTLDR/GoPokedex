@@ -17,6 +17,11 @@ type Client struct {
 	cache      *pokecache.Cache
 }
 
+type Pokemon struct {
+	BaseExperience int    `json:"base_experience"`
+	Name           string `json:"name"`
+}
+
 // New creates a new PokeAPI client
 func New() Client {
 	return Client{
@@ -46,6 +51,34 @@ type LocationArea struct {
 			Name string `json:"name"`
 		} `json:"pokemon"`
 	} `json:"pokemon_encounters"`
+}
+
+func (c *Client) GetPokemon(pokemonName string) (Pokemon, error) {
+	url := c.baseURL + "/pokemon/" + pokemonName
+
+	if cacheData, found := c.cache.Get(url); found {
+		var pokemon Pokemon
+		err := json.Unmarshal(cacheData, &pokemon)
+		if err == nil {
+			return pokemon, nil
+		}
+	}
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		return Pokemon{}, fmt.Errorf("error fetching pokemon: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return Pokemon{}, fmt.Errorf("API request failed with status code: %d", resp.StatusCode)
+	}
+	var pokemon Pokemon
+	err = json.NewDecoder(resp.Body).Decode(&pokemon)
+	if err != nil {
+		return Pokemon{}, fmt.Errorf("error parsing API response: %w", err)
+	}
+	return pokemon, nil
 }
 
 // GetLocationArea fetches details about a specific location area

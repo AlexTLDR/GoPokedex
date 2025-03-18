@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"strings"
 
@@ -43,17 +44,24 @@ func init() {
 			exec:        commandExplore,
 			description: "Explore the Pokemon world",
 		},
+		"catch": {
+			exec:        commandCatch,
+			description: "Attempt to catch a Pokemon",
+		},
 	}
 }
 
 type config struct {
-	Next     string
-	Previous string
-	Args     []string
+	Next          string
+	Previous      string
+	Args          []string
+	CaughtPokemon map[string]pokeapi.Pokemon
 }
 
 func main() {
-	cfg := &config{}
+	cfg := &config{
+		CaughtPokemon: make(map[string]pokeapi.Pokemon),
+	}
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
@@ -177,7 +185,7 @@ func commandMapBack(cfg *config) error {
 
 func commandExplore(cfg *config) error {
 	if len(cfg.Args) == 0 {
-		return fmt.Errorf("please provide a location area name or id to explore")
+		return fmt.Errorf("pleasGET https://pokeapi.co/api/v2/pokemon/{id or name}/e provide a location area name or id to explore")
 	}
 
 	locationName := cfg.Args[0]
@@ -192,5 +200,38 @@ func commandExplore(cfg *config) error {
 	for _, pokemon := range locationArea.PokemonEncounters {
 		fmt.Println(pokemon.Pokemon.Name)
 	}
+	return nil
+}
+
+func commandCatch(cfg *config) error {
+	if len(cfg.Args) == 0 {
+		return fmt.Errorf("please provide a pokemon name")
+	}
+
+	pokemonName := cfg.Args[0]
+
+	if _, ok := cfg.CaughtPokemon[pokemonName]; ok {
+		return fmt.Errorf("you've already caught %s", pokemonName)
+	}
+
+	fmt.Printf("Throwing a Pokeball at %s...\n", pokemonName)
+
+	pokemon, err := client.GetPokemon(pokemonName)
+	if err != nil {
+		return err
+	}
+
+	catchRate := 0.5 - float64(pokemon.BaseExperience)/1000.0
+	if catchRate < 0.1 {
+		catchRate = 0.1
+	}
+
+	r := rand.Float64()
+	if r <= catchRate {
+		cfg.CaughtPokemon[pokemonName] = pokemon
+		fmt.Printf("%s was caught!\n", pokemonName)
+		return nil
+	}
+	fmt.Printf("%s escaped!\n", pokemonName)
 	return nil
 }

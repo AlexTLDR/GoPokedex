@@ -52,6 +52,10 @@ func Initialize() {
 			Exec:        CommandCatch,
 			Description: "Attempt to catch a Pokemon",
 		},
+		"inspect": {
+			Exec:        CommandInspect,
+			Description: "Inspect a caught Pokemon",
+		},
 	}
 }
 
@@ -182,5 +186,30 @@ func CommandCatch(cfg *Config) error {
 		return nil
 	}
 	fmt.Printf("%s escaped!\n", pokemonName)
+	return nil
+}
+
+func CommandInspect(cfg *Config) error {
+	if len(cfg.Args) == 0 {
+		return fmt.Errorf("please provide a pokemon name")
+	}
+	pokemonName := cfg.Args[0]
+	pokemon, ok := cfg.CaughtPokemon[pokemonName]
+	if !ok {
+		return fmt.Errorf("you haven't caught %s yet", pokemonName)
+	}
+	fmt.Printf("Name: %s\n", pokemon.Name)
+	fmt.Printf("Height: %d\n", pokemon.Height)
+	fmt.Printf("Weight: %d\n", pokemon.Weight)
+
+	fmt.Println("Stats:")
+	for _, stat := range pokemon.Stats {
+		fmt.Printf("  -%s: %d\n", stat.Stat.Name, stat.BaseStat)
+	}
+
+	fmt.Println("Types:")
+	for _, typeInfo := range pokemon.Types {
+		fmt.Printf("  -%s\n", typeInfo.Type.Name)
+	}
 	return nil
 }
